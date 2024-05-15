@@ -63,36 +63,13 @@ args = argparse.Namespace(
 )
 print(args)
 
-tokenizer = AutoTokenizer.from_pretrained('/zoo/llama2/llama2-7b-hf/',
-        padding_side="right",
-        use_fast=False, # Fast tokenizer giving issues.
-        )
-data_module = make_data_module(tokenizer=tokenizer, args=args)
-collator = data_module['data_collator']
-print('data loaded')
+datapath = os.path.join(args.output_dir, 'synth.dat')
 
+checkpoint_dir, completed_training = get_last_checkpoint(args.output_dir)
+if completed_training:
+    print('Detected that training was already completed!')
 
-print('loading base model')
-modelpath = get_last_checkpoint(args.output_dir)[0]
-datapath = os.path.join(modelpath, 'samples.dat')
-config = LlamaConfig(**vars(args))
-# model = LlamaForCausalLM.from_pretrained(modelpath, config=config)
-model = AutoModelForCausalLM.from_pretrained(
-    args.model_name_or_path,
-    device_map='auto'
-    # torch_dtype=torch.bfloat16,
-    # device_map={"": 0},
-    # load_in_4bit=True,
-    # quantization_config=BitsAndBytesConfig(
-    #     load_in_4bit=True,
-    #     bnb_4bit_compute_dtype=torch.bfloat16,
-    #     bnb_4bit_use_double_quant=True,
-    #     bnb_4bit_quant_type='nf4',
-    # )
-)
-model = PeftModel.from_pretrained(model, join(modelpath, 'adapter_model'), is_trainable=False).merge_and_unload()
-print('peft model unloaded')
-tokenizer = AutoTokenizer.from_pretrained("/zoo/llama2/llama2-7b-hf/")
+model, tokenizer = get_accelerate_model(args, checkpoint_dir)
 
 preds = []
 batch_size = 100
@@ -103,12 +80,12 @@ print(inputs['input_ids'][:,0])
 
 print('beginning generation')
 
-for batch in tqdm(range(num_samples//batch_size + 1)):
+for batch in tqdm(range(num_samples//batch_size)):
     out = model.generate(**inputs, generation_config=args.generation_config) # batch_size x num_cols x max_column_len
     res = tokenizer.batch_decode(out)
     # print(res)
     preds.extend(res)
         
-    if len(preds)%100 == 0:
+    if len(preds)%500 == 0:
         hp = Dataset.from_pandas(pd.DataFrame(preds).T)
         hp.save_to_disk(datapath)

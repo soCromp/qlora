@@ -158,3 +158,7 @@ We thank the Hugging Face team, in particular Younes Belkada, for their support 
 We also thank Meta for releasing the LLaMA models without which this work would not have been possible.
 
 This repo builds on the [Stanford Alpaca](https://github.com/tatsu-lab/stanford_alpaca) and [LMSYS FastChat](https://github.com/lm-sys/FastChat) repos.
+
+# Additions
+
+`pip install -U bitsandbytes`
