@@ -31,6 +31,7 @@ from transformers import (
     LlamaTokenizer
 
 )
+import datasets
 from datasets import load_dataset, Dataset
 import evaluate
 
@@ -311,8 +312,8 @@ def get_accelerate_model(args, checkpoint_dir):
     model = AutoModelForCausalLM.from_pretrained(
         args.model_name_or_path,
         cache_dir=args.cache_dir,
-        load_in_4bit=args.bits == 4,
-        load_in_8bit=args.bits == 8,
+        # load_in_4bit=args.bits == 4,
+        # load_in_8bit=args.bits == 8,
         device_map=device_map,
         max_memory=max_memory,
         quantization_config=BitsAndBytesConfig(
@@ -495,6 +496,7 @@ class DataCollatorForCausalLM(object):
         }
         if labels is not None:
             data_dict['labels'] = labels
+        # print(data_dict)
         return data_dict
 
 def extract_unnatural_instructions_data(examples, extract_reformulations=False):
@@ -541,6 +543,9 @@ def local_dataset(dataset_name):
         full_dataset = Dataset.from_pandas(pd.read_csv(dataset_name))
     elif dataset_name.endswith('.tsv'):
         full_dataset = Dataset.from_pandas(pd.read_csv(dataset_name, delimiter='\t'))
+    elif dataset_name.endswith('.dat'):
+        split_dataset = datasets.load_from_disk(dataset_name)
+        return split_dataset
     else:
         raise ValueError(f"Unsupported dataset format: {dataset_name}")
 
@@ -674,7 +679,7 @@ def make_data_module(tokenizer: transformers.PreTrainedTokenizer, args) -> Dict:
 def get_last_checkpoint(checkpoint_dir):
     if isdir(checkpoint_dir):
         is_completed = exists(join(checkpoint_dir, 'completed'))
-        if is_completed: return None, True # already finished
+        # if is_completed: return None, True # already finished
         max_step = 0
         for filename in os.listdir(checkpoint_dir):
             if isdir(join(checkpoint_dir, filename)) and filename.startswith('checkpoint'):
